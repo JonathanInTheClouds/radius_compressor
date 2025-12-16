@@ -103,14 +103,17 @@ def create_kml(diamonds, center, filename):
         for j, p in enumerate(d['path']): 
             speed = p['spd']
             alt = p['alt']
+            lat = p['lat']
+            lon = p['lon']
             style_id = "#slow" if speed == TURN_SPEED else "#fast"
             
+            # UPDATED: Added speed to the Name tag so it is visible in the list
             body.append(f"""
             <Placemark>
-              <name>Pt {j}</name>
-              <description>Speed: {speed} mph\nAlt: {alt}</description>
+              <name>Pt {j} - {speed}mph</name>
+              <description>Speed: {speed} mph\nAlt: {alt}\nLat: {lat:.6f}\nLon: {lon:.6f}</description>
               <styleUrl>{style_id}</styleUrl>
-              <Point><altitudeMode>absolute</altitudeMode><coordinates>{p['lon']:.5f},{p['lat']:.5f},{alt}</coordinates></Point>
+              <Point><altitudeMode>absolute</altitudeMode><coordinates>{lon:.6f},{lat:.6f},{alt}</coordinates></Point>
             </Placemark>""")
             
         body.append('</Folder>')
