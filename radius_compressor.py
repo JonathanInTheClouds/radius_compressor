@@ -1,21 +1,30 @@
 import math
 from math import sin, cos, asin, atan2, radians as rad, degrees as deg
 
+# --- 1. CONFIGURATION ---
 CENTER_LAT = 34.73
 CENTER_LON = -86.59
 LINE_LENGTH_MILES = 900
 HUB_RADIUS_MILES = 2
 
-ANCHOR_SPACING_MILES = 0.5
+# --- 2. DUPLICATION SETTINGS ---
 NUM_DUPLICATES = 25
+ANCHOR_SPACING_MILES = 0.5  # Only used if USE_SPAN_DISTRIBUTION is False
 
+# --- 3. SPAN & POSITION CONTROLS (NEW!) ---
+START_ANGLE = 90            # 0=East, 90=North, 180=West, 270=South
+SPAN_PERCENTAGE = 0.5       # 1.0 = Full Circle (360°), 0.5 = Half Circle (180°)
+USE_SPAN_DISTRIBUTION = True # True = Fit items into Span; False = Use Mile Spacing
+
+# --- 4. 3D SETTINGS ---
 START_HEIGHT = 5000
 HEIGHT_OFFSET = 2000
 
+# --- 5. SPEED SETTINGS ---
 CRUISE_SPEED = 1200
 TURN_SPEED = 120
 
-OUTPUT_FILENAME = "colored_speed_spiral_lol.kml"
+OUTPUT_FILENAME = "colored_speed_spiral_span.kml"
 
 def get_rotation_step(r, gap):
     return deg(gap / r) if r else 0
@@ -107,7 +116,6 @@ def create_kml(diamonds, center, filename):
             lon = p['lon']
             style_id = "#slow" if speed == TURN_SPEED else "#fast"
             
-            # UPDATED: Added speed to the Name tag so it is visible in the list
             body.append(f"""
             <Placemark>
               <name>Pt {j} - {speed}mph</name>
@@ -124,13 +132,26 @@ def create_kml(diamonds, center, filename):
         f.write("\n".join(header + body + ['</Document></kml>']))
     print(f"\n[System] Saved KML file: {filename}")
 
+# --- MAIN EXECUTION ---
 diamonds = []
-rot_step = get_rotation_step(HUB_RADIUS_MILES, ANCHOR_SPACING_MILES)
 
 print(f"{'='*50}\nGENERATING COLORED SPEED SPIRAL\n{'='*50}")
 
+# Determine Rotation Step based on user mode
+if USE_SPAN_DISTRIBUTION:
+    # Mode A: Distribute items evenly over the span percent
+    total_degrees = 360 * SPAN_PERCENTAGE
+    # We divide by duplicates to space them out evenly within that sector
+    rot_step = total_degrees / NUM_DUPLICATES if NUM_DUPLICATES else 0
+    print(f"[Mode] SPAN: Covering {total_degrees}° ({SPAN_PERCENTAGE*100}%) starting at {START_ANGLE}°")
+else:
+    # Mode B: Use fixed mile spacing (Old Method)
+    rot_step = get_rotation_step(HUB_RADIUS_MILES, ANCHOR_SPACING_MILES)
+    print(f"[Mode] DISTANCE: Spacing calculated at {rot_step:.2f}° per diamond starting at {START_ANGLE}°")
+
 for i in range(NUM_DUPLICATES):
-    cur_rot = i * rot_step
+    # Apply Starting Angle + (Index * Step)
+    cur_rot = START_ANGLE + (i * rot_step)
     cur_alt = START_HEIGHT + (i * HEIGHT_OFFSET)
     
     anchor = get_dest(CENTER_LAT, CENTER_LON, HUB_RADIUS_MILES, cur_rot)
@@ -142,6 +163,6 @@ for i in range(NUM_DUPLICATES):
         'path': path_data
     })
     
-    print(f"Diamond {i+1}: {len(path_data)} points processed.")
+    print(f"Diamond {i+1}: {len(path_data)} points | Heading: {cur_rot:.1f}°")
 
 create_kml(diamonds, (CENTER_LAT, CENTER_LON), OUTPUT_FILENAME)
